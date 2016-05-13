@@ -1,26 +1,20 @@
-module.exports = ({ data, multiSection, allowNull = true }) => {
-  const isEmpty = multiSection ? !data.some(i => i > 0) : data === 0;
+const nonZero = i => i > 0;
+
+module.exports = ({ data, multiSection, wrap = true }) => {
+  const isEmpty = multiSection ? !data.some(nonZero) : data === 0;
 
   function nextNonEmptySectionIndex(sectionIndex) {
     if (isEmpty) {
       return null;
     }
 
-    if (sectionIndex == null) {
-      sectionIndex = 0;
-    } else {
-      sectionIndex++;
-    }
+    const start = sectionIndex === null ? 0 : sectionIndex + 1;
+    const delta = data.slice(start).findIndex(nonZero);
 
-    while (sectionIndex < data.length && data[sectionIndex] === 0) {
-      sectionIndex++;
+    if (delta === -1) {
+      return wrap ? null : sectionIndex;
     }
-
-    if (sectionIndex === data.length) {
-      return allowNull ? null : nextNonEmptySectionIndex(null);
-    }
-
-    return sectionIndex;
+    return start + delta;
   }
 
   function prevNonEmptySectionIndex(sectionIndex) {
@@ -28,25 +22,17 @@ module.exports = ({ data, multiSection, allowNull = true }) => {
       return null;
     }
 
-    if (sectionIndex === null) {
-      sectionIndex = data.length - 1;
-    } else {
-      sectionIndex--;
-    }
+    const start = sectionIndex === null ? data.length : sectionIndex;
+    const delta = data.slice(0, start).reverse().findIndex(nonZero);
 
-    while (sectionIndex >= 0 && data[sectionIndex] === 0) {
-      sectionIndex--;
+    if (delta === -1) {
+      return wrap ? null : sectionIndex;
     }
-
-    if (sectionIndex === -1) {
-      return allowNull ? null : prevNonEmptySectionIndex(null);
-    }
-
-    return sectionIndex;
+    return start - 1 - delta;
   }
 
   function next(position) {
-    let [sectionIndex, itemIndex] = position;
+    const [sectionIndex, itemIndex] = position;
 
     if (isEmpty) {
       return [null, null];
@@ -54,20 +40,24 @@ module.exports = ({ data, multiSection, allowNull = true }) => {
 
     if (multiSection) {
       if (itemIndex === null || itemIndex === data[sectionIndex] - 1) {
-        sectionIndex = nextNonEmptySectionIndex(sectionIndex);
+        const newSectionIndex = nextNonEmptySectionIndex(sectionIndex);
 
-        if (sectionIndex === null) {
+        if (newSectionIndex === null) {
           return [null, null];
         }
 
-        return [sectionIndex, 0];
+        if (newSectionIndex === sectionIndex) {
+          return position;
+        }
+
+        return [newSectionIndex, 0];
       }
 
       return [sectionIndex, itemIndex + 1];
     }
 
     if (itemIndex === data - 1) {
-      return allowNull ? [null, null] : next([null, null]);
+      return wrap ? [null, null] : [null, itemIndex];
     }
 
     if (itemIndex === null) {
@@ -78,7 +68,7 @@ module.exports = ({ data, multiSection, allowNull = true }) => {
   }
 
   function prev(position) {
-    let [sectionIndex, itemIndex] = position;
+    const [sectionIndex, itemIndex] = position;
 
     if (isEmpty) {
       return [null, null];
@@ -86,20 +76,24 @@ module.exports = ({ data, multiSection, allowNull = true }) => {
 
     if (multiSection) {
       if (itemIndex === null || itemIndex === 0) {
-        sectionIndex = prevNonEmptySectionIndex(sectionIndex);
+        const newSectionIndex = prevNonEmptySectionIndex(sectionIndex);
 
-        if (sectionIndex === null) {
+        if (newSectionIndex === null) {
           return [null, null];
         }
 
-        return [sectionIndex, data[sectionIndex] - 1];
+        if (newSectionIndex == sectionIndex) {
+          return position;
+        }
+
+        return [newSectionIndex, data[newSectionIndex] - 1];
       }
 
       return [sectionIndex, itemIndex - 1];
     }
 
     if (itemIndex === 0) {
-      return allowNull ? [null, null] : prev([null, null]);
+      return wrap ? [null, null] : [null, itemIndex];
     }
 
     if (itemIndex === null) {
